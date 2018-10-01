@@ -528,6 +528,55 @@ tx.Eager("Books.Writers.Book").First(&u)
 tx.Eager("Books.Writers").Eager("FavoriteSong").First(&u)
 ```
 
+### Flat Nested Creation
+
+Pop allows you to create the models and their associations with other models in one step by default. You no longer need to create every association separately anymore. Pop will even create join table records for `many_to_many` associations.
+
+Assuming the following pieces of pseudo-code:
+
+```go
+book := Book{Title: "Pop Book", Description: "Pop Book", Isbn: "PB1"}
+tx.Create(&book)
+song := Song{Title: "Don't know the title"}
+tx.Create(&song)
+addr := Address{HouseNumber: 1, Street: "Golang"}
+tx.Create(&addr)
+
+user := User{
+  Name: "Mark Bates",
+  Books: Books{Book{ID: book.ID}},
+  FavoriteSong: song,
+  Houses: Addresses{
+    addr,
+  },
+}
+```
+
+```go
+err := tx.Create(&user)
+```
+
+1. It will notice `Books` is a `has_many` association and it will realize that to actually store every book it will need to get the `User ID` first. So, it proceeds to store first `User` data so it can retrieve an **ID** and then use that ID to fill `UserID` field in every `Book` in `Books`. Later it updates all affected books in the database using their `ID`s to target them.
+
+2. `FavoriteSong` is a `has_one` association and it uses same logic described in `has_many` association. Since `User` data was previously saved before updating all affected books, it already knows that `User` got an `ID` so it fills its `UserID` field with that value and `FavoriteSong` is then updated in the database.
+
+3. `Houses` in this example is a `many_to_many` relationship and it will have to deal with two tables in this case: `users` and `addresses`. Because `User` was already stored, it already has an `ID`.  It will then use the `ID`s passed with the `Addresses` to create the coresponding entries in the join table.
+
+For a `belongs_to` association like shown in the example below, it fill its `UserID` field before be saved in database.
+
+```go
+book := Book{
+   Title:      "Pop Book",
+   Description: "Pop Book",
+   Isbn:        "PB1",
+   User: user,
+}
+```
+
+```go
+tx.Create(&book)
+```
+
 ### Eager Creation
 
 Pop allows you to create models and their associations in one step. You no longer need to create every association separately anymore. Pop will even create join table records for `many_to_many` associations.
