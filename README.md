@@ -621,7 +621,7 @@ book := Book{
 tx.Eager().Create(&book)
 ```
 
-All these cases are assuming that none of models and associations has previously been saved in database.
+In the case that you feed the eager create with associate models that already exist it will, instead of creating duplicates of them, simply create/update the accosiations with them.
 
 ## Callbacks
 
